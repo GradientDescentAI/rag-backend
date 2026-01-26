@@ -1,7 +1,8 @@
 fastapi
 uvicorn
 google-genai
+pinecone-client
 langchain-pinecone
 langchain-huggingface
 sentence-transformers
-pinecone
+pydantic
