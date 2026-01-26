@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+google-genai
+langchain-pinecone
+langchain-huggingface
+sentence-transformers
+pinecone
