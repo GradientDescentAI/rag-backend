@@ -1,6 +1,7 @@
 import os
 import traceback
 from typing import List
+from fastapi.middleware.cors import CORSMiddleware
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -13,6 +14,14 @@ from google import genai
 app = FastAPI(
     title="Constitution RAG API",
     version="1.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],   # OK for demo; restrict later
+    allow_credentials=True,
+    allow_methods=["*"],   # Allows OPTIONS, POST, GET
+    allow_headers=["*"],
 )
 
 # -------------------------------------------------
