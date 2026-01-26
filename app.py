@@ -12,8 +12,11 @@ from langchain_pinecone import PineconeVectorStore
 # ENVIRONMENT VARIABLES (provided by Render)
 # -------------------------------------------------
 
-PINECONE_API_KEY = os.environ["PINECONE_API_KEY"]
-GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+if not PINECONE_API_KEY or not GEMINI_API_KEY:
+    raise RuntimeError("Missing required environment variables")
 
 INDEX_NAME = "constitution-rag-demo"
 NAMESPACE = "constitution-2024"
