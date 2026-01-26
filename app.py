@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from google import genai
 
 # -------------------------------------------------
-# FASTAPI APP (MUST EXIST AT TOP LEVEL)
+# FASTAPI APP
 # -------------------------------------------------
 
 app = FastAPI(
@@ -16,20 +16,23 @@ app = FastAPI(
 )
 
 # -------------------------------------------------
-# GLOBAL PLACEHOLDERS (INITIALIZED ON STARTUP)
+# GLOBALS (LAZY INIT)
 # -------------------------------------------------
 
 embeddings = None
 vectorstore = None
 genai_client = None
+initialized = False
 
 # -------------------------------------------------
-# STARTUP EVENT (RENDER-SAFE)
+# LAZY INITIALIZATION FUNCTION
 # -------------------------------------------------
 
-@app.on_event("startup")
-def startup_event():
-    global embeddings, vectorstore, genai_client
+def ensure_initialized():
+    global embeddings, vectorstore, genai_client, initialized
+
+    if initialized:
+        return
 
     try:
         from langchain_huggingface import HuggingFaceEmbeddings
@@ -44,12 +47,12 @@ def startup_event():
         # Gemini client
         genai_client = genai.Client(api_key=GEMINI_API_KEY)
 
-        # Heavy model load (do NOT move to top-level)
+        # Embeddings (heavy)
         embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-mpnet-base-v2"
         )
 
-        # Pinecone vector store
+        # Pinecone
         vectorstore = PineconeVectorStore(
             index_name="constitution-rag-demo",
             embedding=embeddings,
@@ -57,10 +60,11 @@ def startup_event():
             pinecone_api_key=PINECONE_API_KEY
         )
 
-        print("✅ Startup complete: Gemini + Pinecone ready")
+        initialized = True
+        print("✅ Lazy initialization complete")
 
     except Exception:
-        print("❌ Startup failed")
+        print("❌ Lazy initialization failed")
         traceback.print_exc()
         raise
 
@@ -122,20 +126,17 @@ def health():
     return {"status": "ok"}
 
 # -------------------------------------------------
-# CHAT ENDPOINT (ROBUST + DEBUGGABLE)
+# CHAT ENDPOINT
 # -------------------------------------------------
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
     try:
-        if vectorstore is None or genai_client is None:
-            raise RuntimeError("Backend not initialized")
+        ensure_initialized()
 
-        # 1. Retrieve documents
         docs = vectorstore.similarity_search(req.question, k=4)
 
-        sources: List[SourceChunk] = []
-
+        sources = []
         for d in docs:
             page_raw = d.metadata.get("page", -1)
             try:
@@ -150,17 +151,14 @@ def chat(req: ChatRequest):
                 )
             )
 
-        # 2. Build prompt
         prompt = build_prompt(req.question, sources)
 
-        # 3. Gemini call
         response = genai_client.models.generate_content(
             model="models/gemini-2.5-flash-lite",
             contents=prompt
         )
 
-        # 4. SAFE text extraction (Gemini SDK varies)
-        text = ""
+        # Safe Gemini parsing
         if hasattr(response, "text") and response.text:
             text = response.text
         elif hasattr(response, "candidates"):
@@ -168,7 +166,6 @@ def chat(req: ChatRequest):
         else:
             raise RuntimeError("Gemini returned no usable text")
 
-        # 5. Parse structured output
         if "Answer:" in text and "Reasoning:" in text:
             answer = text.split("Answer:")[1].split("Reasoning:")[0].strip()
             reasoning = text.split("Reasoning:")[1].strip()
@@ -183,6 +180,6 @@ def chat(req: ChatRequest):
         )
 
     except Exception as e:
-        print("❌ ERROR IN /chat ENDPOINT")
+        print("❌ ERROR IN /chat")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
