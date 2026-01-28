@@ -58,14 +58,13 @@ def ensure_initialized():
 
         # Embeddings (heavy)
         embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
+            model_name="sentence-transformers/all-mpnet-base-v2"
         )
 
         # Pinecone
         vectorstore = PineconeVectorStore(
-            index_name="constitution-rag-384",
+            index_name="constitution-rag-demo",
             embedding=embeddings,
-            text_key="text"
             namespace="constitution-2024",
             pinecone_api_key=PINECONE_API_KEY
         )
