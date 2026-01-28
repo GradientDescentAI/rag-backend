@@ -65,6 +65,7 @@ def ensure_initialized():
         vectorstore = PineconeVectorStore(
             index_name="constitution-rag-384",
             embedding=embeddings,
+            text_key="text"
             namespace="constitution-2024",
             pinecone_api_key=PINECONE_API_KEY
         )
